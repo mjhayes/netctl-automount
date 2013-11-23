@@ -1,0 +1,42 @@
+#!/bin/bash
+
+mounts=('wlp1s0-SKY6EC78:/home/matt/nas/home'
+        'wlp1s0-SKY6EC78:/home/matt/nas/shared'
+        'wlp1s0-SKY6EC78:/home/matt/nas/music'
+        'wlp1s0-SKY6EC78:/home/matt/nas/video'
+        'wlp1s0-SKY6EC78:/var/cache/pacman/nas')
+
+for i in ${mounts[@]}; do
+    prereq=$(echo $i | cut -d ':' -f 1)
+    path=$(echo $i | cut -d ':' -f 2)
+
+    logger -t $logtag "prereq: $prereq  path: $path"
+
+    # Check if this is already mounted
+    findmnt $path > /dev/null
+    fmnt=$?
+
+    # If stop was passed to this script we will only be unmounting!
+    if [ "$1" = "stop" ]; then
+        if [ $fmnt -eq 0 ]; then
+            logger -t $logtag "umounting $path (stop)"
+            umount $path
+        fi
+        continue
+    fi
+
+    # If it is mounted but the auto conn has changed, we should umount
+    if [ $fmnt -eq 0 -a "$prereq" != "$netctl_auto_current" ]; then
+        logger -t $logtag "umounting $path"
+        umount $path
+        continue
+    fi
+
+    # If not mounted and auto conn is the prerequisite, mount
+    if [ $fmnt -ne 0 -a "$prereq" = "$netctl_auto_current" ]; then
+        logger -t $logpath "mounting $path"
+        mount $path
+    fi
+done
+
+# vim: set et ts=4 sw=4 sts=4:
